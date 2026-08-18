@@ -61,8 +61,8 @@
 		EF910261302FAD7C00714A62 = {
 			isa = PBXGroup;
 			children = (
-				EF910272302FAD7D00714A62 /* Apresentation Watch App */,
 				EF910269302FAD7D00714A62 /* Products */,
+				EF910272302FAD7D00714A62 /* Apresentation Watch App */,
 			);
 			sourceTree = "<group>";
 		};
@@ -338,7 +338,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -372,7 +372,7 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				VALIDATE_PRODUCT = YES;
-				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
