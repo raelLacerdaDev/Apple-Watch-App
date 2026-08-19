@@ -15,6 +15,10 @@ struct MetricsPageView: View {
     let alertColor: Color = .yellow
     @State private var currentTheme: Color = .blue
     
+    //healthkit - infos
+    @State private var bpm: Double = 82.0
+    @State private var ppm: Double = 80.0
+    
     // para teste alterar depois
     let audioTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
@@ -32,7 +36,7 @@ struct MetricsPageView: View {
                         .font(.title2)
                         .foregroundColor(.red)
                     VStack {
-                        Text("82").font(.body.bold())
+                        Text("\(bpm, specifier: "%.0f")").font(.body.bold())
                         Text("bpm").font(.caption2)
                     }
                 }
@@ -42,7 +46,7 @@ struct MetricsPageView: View {
                         .font(.title2)
                         .foregroundColor(.purple)
                     VStack {
-                        Text("80").font(.body.bold())
+                        Text("\(ppm, specifier: "%.0f")").font(.body.bold())
                         Text("ppm").font(.caption)
                     }
                 }
