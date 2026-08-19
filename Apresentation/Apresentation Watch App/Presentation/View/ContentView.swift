@@ -15,9 +15,9 @@ struct ContentView: View {
 			Text("Hello word")
 		}
 		.padding()
-		.onAppear {
-			workoutManager.requestAuthorization()
-		}
+		.task {
+			await workoutManager.requestAuthorization()
+        }
 	}
 }
 

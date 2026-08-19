@@ -2,6 +2,7 @@ import Foundation
 import HealthKit
 import Combine
 
+@MainActor
 class WorkoutManager: NSObject, ObservableObject {
 	
 	let healthStore = HKHealthStore()
@@ -19,7 +20,9 @@ class WorkoutManager: NSObject, ObservableObject {
 	@Published var warningsCount: Int = 0
 
 	// Permissões iniciais
-	func requestAuthorization() {
+	func requestAuthorization() async {
+		guard HKHealthStore.isHealthDataAvailable() else { return }
+
 		let typesToShare: Set = [
 			HKObjectType.workoutType()
 		]
@@ -28,15 +31,18 @@ class WorkoutManager: NSObject, ObservableObject {
 			HKQuantityType.quantityType(forIdentifier: .heartRate)!
 		]
 		
-		healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { (success, error) in
+		do {
+			try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
+		} catch {
+			print("Erro na permissão do HealthKit: \(error.localizedDescription)")
 		}
 	}
 	
-	// inicio da sessao do workout
+	// Início da sessão do workout
 	func startWorkout() {
 		let configuration = HKWorkoutConfiguration()
-		configuration.activityType = .other
-		configuration.locationType = .unknown
+		configuration.activityType = .mindAndBody
+		configuration.locationType = .indoor
 		
 		do {
 			session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
@@ -46,25 +52,36 @@ class WorkoutManager: NSObject, ObservableObject {
 			return
 		}
 		
+		// Define os delegates para receber os dados ao vivo
 		session?.delegate = self
 		builder?.delegate = self
 		
-		builder?.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore,
-													 workoutConfiguration: configuration)
+		builder?.dataSource = HKLiveWorkoutDataSource(
+			healthStore: healthStore,
+			workoutConfiguration: configuration
+		)
 		
 		let startDate = Date()
 		session?.startActivity(with: startDate)
-		builder?.beginCollection(withStart: startDate) { (success, error) in }
+		
+		Task {
+			do {
+				try await builder?.beginCollection(at: startDate)
+				self.running = true
+			} catch {
+				print("Erro ao iniciar coleta do treino: \(error.localizedDescription)")
+			}
+		}
 	}
 	
 	// Encerramento manual pelo usuário
 	func stopWorkout() {
-		session?.stopActivity(with: Date())
+		session?.end()
 	}
 	
 	func togglePause() {
-		if running == true {
-			self.pause()
+		if running {
+			pause()
 		} else {
 			resume()
 		}
@@ -82,55 +99,55 @@ class WorkoutManager: NSObject, ObservableObject {
 	func updateForStatistics(_ statistics: HKStatistics?) {
 		guard let statistics = statistics else { return }
 
-		DispatchQueue.main.async {
-			switch statistics.quantityType {
-			case HKQuantityType.quantityType(forIdentifier: .heartRate):
-				let heartRateUnit = HKUnit.count().unitDivided(by: HKUnit.minute())
-				self.heartRate = statistics.mostRecentQuantity()?.doubleValue(for: heartRateUnit) ?? 0
-				self.averageHeartRate = statistics.averageQuantity()?.doubleValue(for: heartRateUnit) ?? 0
-			default:
-				return
-			}
+		switch statistics.quantityType {
+		case HKQuantityType.quantityType(forIdentifier: .heartRate):
+			let heartRateUnit = HKUnit.count().unitDivided(by: HKUnit.minute())
+			self.heartRate = statistics.mostRecentQuantity()?.doubleValue(for: heartRateUnit) ?? 0
+			self.averageHeartRate = statistics.averageQuantity()?.doubleValue(for: heartRateUnit) ?? 0
+		default:
+			return
 		}
 	}
 }
 
 // MARK: - HKWorkoutSessionDelegate
 extension WorkoutManager: HKWorkoutSessionDelegate {
-	func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {
-		
-		DispatchQueue.main.async {
-			self.running = toState == .running
-		}
-
-		// Se o treino parou
-		if toState == .stopped {
-			builder?.endCollection(withEnd: date) { (success, error) in
-				self.builder?.finishWorkout { (workout, error) in
-					self.session?.end()
-					DispatchQueue.main.async {
-						self.workout = workout
-					}
+	nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {
+		Task { @MainActor in
+			self.running = (toState == .running)
+			
+			// Se o treino parou ou encerrou
+			if toState == .stopped || toState == .ended {
+				self.running = false
+				do {
+					try await self.builder?.endCollection(at: date)
+					let workout = try await self.builder?.finishWorkout()
+					self.workout = workout
+				} catch {
+					print("Erro ao encerrar treino: \(error.localizedDescription)")
 				}
 			}
 		}
 	}
 
-	func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
-		//
+	nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+		print("Sessão falhou: \(error.localizedDescription)")
 	}
 }
 
 // MARK: - HKLiveWorkoutBuilderDelegate
 extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
-	func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
-	}
+	nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 
-	func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
+	nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
 		for type in collectedTypes {
 			guard let quantityType = type as? HKQuantityType else { return }
+			
 			let statistics = workoutBuilder.statistics(for: quantityType)
-			updateForStatistics(statistics)
+			
+			Task { @MainActor in
+				self.updateForStatistics(statistics)
+			}
 		}
 	}
 }
