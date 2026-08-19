@@ -60,3 +60,11 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# Claude Code
+.claude/
+CLAUDE.md
+.mcp.json
+
+# macOS
+.DS_Store
