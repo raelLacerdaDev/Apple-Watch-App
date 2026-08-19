@@ -11,15 +11,25 @@ struct SessionTabView: View {
     @Binding var path: [AppRoute]
     
     @State private var selectedTab = 1
-
+    @StateObject private var timerManager = TimerManager()
+    
     var body: some View {
         TabView(selection: $selectedTab) {
-            MetricsPageView()
-                .tag(1)
+            MetricsPageView(
+                progress: timerManager.progress,
+                ringOpacity: timerManager.ringOpacity
+            )
+            .tag(1)
             EndSessionPageView(path: $path)
                 .tag(2)
         }
         .tabViewStyle(.page)
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            timerManager.start()
+        }
+        .onDisappear {
+            timerManager.stop()
+        }
     }
 }
