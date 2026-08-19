@@ -8,14 +8,20 @@
 import SwiftUI
 
 struct ContentView: View {
+    
+    @State private var path: [AppRoute] = []
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack(path: $path) {
+            StartView(path: $path)
+                .navigationDestination(for: AppRoute.self) { route in
+                    switch route {
+                        case .ready: ReadyView(path:$path)
+                        case .session: SessionTabView(path:$path)
+                        case .config: ConfigView(path:$path)
+                    }
+                }
         }
-        .padding()
     }
 }
 
