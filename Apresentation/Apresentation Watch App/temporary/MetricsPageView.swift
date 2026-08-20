@@ -28,14 +28,13 @@ struct MetricsPageView: View {
     let audioTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
     var body: some View {
-        VStack {
-            
+        VStack(spacing: 10) {
             ZStack {
                 TimerRingView(themeColor: $currentTheme, progress: progress, ringOpacity: ringOpacity)
                     .frame(width: 120, height: 120)
                 AudioSpectrumView(audioLevel: $currentAudioLevel, themeColor: $currentTheme)
             }
-            HStack {
+            HStack(spacing: 16) {
                 HStack {
                     Image(systemName: "heart")
                         .font(.title2)
@@ -45,7 +44,6 @@ struct MetricsPageView: View {
                         Text("bpm").font(.caption2)
                     }
                 }
-                Spacer()
                 HStack {
                     Image(systemName: "music.note")
                         .font(.title2)
