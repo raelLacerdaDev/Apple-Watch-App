@@ -16,13 +16,19 @@ class TimerManager: ObservableObject {
     private var timerTask: Task<Void, Never>? = nil
     
     func start() {
-        // Evita criar múltiplos timers se já estiver rodando
+        
         guard timerTask == nil else { return }
         
+        
+        progress = 0.0
+        ringOpacity = 1.0
+        
         timerTask = Task {
+            
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            
             while !Task.isCancelled {
-                progress = 0.0
-                ringOpacity = 1.0
+                
                 
                 withAnimation(.linear(duration: 60)) {
                     progress = 1.0
@@ -38,12 +44,19 @@ class TimerManager: ObservableObject {
                 try? await Task.sleep(nanoseconds: 400_000_000)
                 if Task.isCancelled { break }
                 
-                progress = 0.0
+                withAnimation(nil) {
+                    progress = 0.0
+                }
+                
+                
                 withAnimation(.easeIn(duration: 0.4)) {
                     ringOpacity = 1.0
                 }
                 
                 try? await Task.sleep(nanoseconds: 400_000_000)
+                if Task.isCancelled { break }
+                
+                try? await Task.sleep(nanoseconds: 50_000_000)
             }
         }
     }
