@@ -317,7 +317,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Apresentation Watch App/Apresentation Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 8WC4AN9P73;
+				DEVELOPMENT_TEAM = LVLV977XZN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Apresentation-Watch-App-Info.plist";
@@ -355,7 +355,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Apresentation Watch App/Apresentation Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 8WC4AN9P73;
+				DEVELOPMENT_TEAM = LVLV977XZN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Apresentation-Watch-App-Info.plist";
@@ -391,7 +391,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 8WC4AN9P73;
+				DEVELOPMENT_TEAM = LVLV977XZN;
 				INFOPLIST_KEY_CFBundleDisplayName = Apresentation;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				MARKETING_VERSION = 1.0;
@@ -409,7 +409,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 8WC4AN9P73;
+				DEVELOPMENT_TEAM = LVLV977XZN;
 				INFOPLIST_KEY_CFBundleDisplayName = Apresentation;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				MARKETING_VERSION = 1.0;
