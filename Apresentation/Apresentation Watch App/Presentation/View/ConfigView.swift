@@ -10,7 +10,7 @@ import SwiftUI
 struct ConfigView: View {
     
     @Binding var path: [AppRoute]
-    @State private var ppm: CGFloat = 80
+    @AppStorage("targetWPM") private var ppm: Int = 130
     
     var body: some View {
         HStack {
@@ -25,7 +25,7 @@ struct ConfigView: View {
             Spacer()
             
             VStack {
-                Text("\(ppm, specifier: "%.0f")")
+                Text("\(ppm)")
                     .font(.title)
                 Text("ppm")
                     .font(.caption)

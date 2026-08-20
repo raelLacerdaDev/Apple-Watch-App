@@ -14,7 +14,7 @@ struct Apresentation_Watch_AppApp: App {
 	@SceneBuilder var body: some Scene {
 		WindowGroup {
 			NavigationView {
-				ContentView()
+				RouteView()
 			}
 			.environmentObject(workoutManager)
 		}

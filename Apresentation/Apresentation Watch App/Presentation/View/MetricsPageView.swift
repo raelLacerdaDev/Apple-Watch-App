@@ -15,9 +15,8 @@ struct MetricsPageView: View {
     let alertColor: Color = .yellow
     @State private var currentTheme: Color = .blue
     
-    //healthkit - infos
-    @State private var bpm: Double = 82.0
-    @State private var ppm: Double = 80.0
+    @EnvironmentObject var workoutManager: WorkoutManager
+    @State private var rhythmViewModel = RhythmViewModel()
     
     
     // animacao de anel tive que elevar estado
@@ -26,6 +25,9 @@ struct MetricsPageView: View {
     
     // para teste alterar depois
     let audioTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+    
+    // TODO: Remover simulador de palavras posteriormente (acionado a cada 1 segundo)
+    let wordSimulatorTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
     
     var body: some View {
         VStack(spacing: 10) {
@@ -40,7 +42,7 @@ struct MetricsPageView: View {
                         .font(.title2)
                         .foregroundColor(.red)
                     VStack {
-                        Text("\(bpm, specifier: "%.0f")").font(.body.bold())
+                        Text("\(workoutManager.heartRate, specifier: "%.0f")").font(.body.bold())
                         Text("bpm").font(.caption2)
                     }
                 }
@@ -49,7 +51,7 @@ struct MetricsPageView: View {
                         .font(.title2)
                         .foregroundColor(.purple)
                     VStack {
-                        Text("\(ppm, specifier: "%.0f")").font(.body.bold())
+                        Text("\(rhythmViewModel.currentWPM)").font(.body.bold())
                         Text("ppm").font(.caption)
                     }
                 }
@@ -59,6 +61,21 @@ struct MetricsPageView: View {
         .onReceive(audioTimer) { _ in
             if isRecording {
                 currentAudioLevel = CGFloat.random(in: 0.1...1.0)
+            }
+        }
+        // TODO: Remover bloco do simulador posteriormente
+        .onReceive(wordSimulatorTimer) { _ in
+            if isRecording {
+                // Simula 2 a 3 palavras por segundo para testar o limite acelerado vs no ritmo
+                // 3 palavras/seg = 180 wpm (vai acelerar)
+                // 2 palavras/seg = 120 wpm (volta pro pace)
+                let simulatedWordCount = Int.random(in: 2...3)
+                rhythmViewModel.didReceive(wordCount: simulatedWordCount)
+            }
+        }
+        .onChange(of: rhythmViewModel.currentState) { oldValue, newValue in
+            withAnimation {
+                currentTheme = newValue == .onPace ? normalColor : alertColor
             }
         }
     }

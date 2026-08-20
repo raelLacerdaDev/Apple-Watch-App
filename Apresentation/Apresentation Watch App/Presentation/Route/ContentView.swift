@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ContentView: View {
+struct RouteView: View {
     
     @State private var path: [AppRoute] = []
     
@@ -22,19 +22,9 @@ struct ContentView: View {
                     }
                 }
         }
-//        NavigationStack(path: $path) {
-//            StartView(path: $path)
-//                .navigationDestination(for: AppRoute.self) { route in
-//                    switch route {
-//                        case .ready: ReadyView(path:$path)
-//                        case .session: SessionTabView(path:$path)
-//                        case .config: ConfigView(path:$path)
-//                    }
-//                }
-//        }
     }
 }
 
 #Preview {
-    ContentView()
+    RouteView()
 }

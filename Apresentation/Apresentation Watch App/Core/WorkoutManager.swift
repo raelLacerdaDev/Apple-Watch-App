@@ -1,6 +1,6 @@
 import Foundation
 import HealthKit
-import Combine
+internal import Combine
 
 class WorkoutManager: NSObject, ObservableObject {
 	

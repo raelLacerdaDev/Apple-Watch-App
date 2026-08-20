@@ -14,8 +14,17 @@ protocol SpeechPaceCalculable {
 }
 
 struct PaceCalculator {
-	private let targetWpm = 130
-	private let upperLimit = 135
+	let targetWpm: Int
+	var upperLimit: Int { targetWpm + 5 }
+	
+	init(targetWpm: Int? = nil) {
+		if let target = targetWpm {
+			self.targetWpm = target
+		} else {
+			let savedTarget = UserDefaults.standard.integer(forKey: "targetWPM")
+			self.targetWpm = savedTarget > 0 ? savedTarget : 130
+		}
+	}
 	
 	private var upperLimitSeconds = 0
 	private var silenceSeconds = 0
@@ -23,7 +32,7 @@ struct PaceCalculator {
 	private var slidingWindow: [Int] = []
 	
 	let silenceLimit = 10
-	let secondsWindowAnalysis = 15
+	let secondsWindowAnalysis = 5
 	
 	private(set) var currentWpm = 0
 	private(set) var currentState: SpeechState = .onPace
@@ -64,13 +73,13 @@ struct PaceCalculator {
 		case .onPace:
 			upperLimitSeconds = (currentWpm > upperLimit) ? upperLimitSeconds + 1 : 0
 			
-			if currentWpm >= secondsWindowAnalysis {
+			if upperLimitSeconds >= secondsWindowAnalysis {
 				currentState = .accelerated
 				upperLimitSeconds = 0
 			}
 			
 		case .accelerated:
-			if currentWpm <= secondsWindowAnalysis {
+			if currentWpm <= upperLimit {
 				currentState = .onPace
 			}
 		}
