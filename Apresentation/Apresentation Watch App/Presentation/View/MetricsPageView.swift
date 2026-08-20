@@ -23,6 +23,11 @@ struct MetricsPageView: View {
     var progress: CGFloat
     var ringOpacity: Double
     
+    
+    // animacao de anel tive que elevar estado
+    var progress: CGFloat
+    var ringOpacity: Double
+    
     // para teste alterar depois
     let audioTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
