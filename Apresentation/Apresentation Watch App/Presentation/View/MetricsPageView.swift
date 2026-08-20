@@ -17,11 +17,8 @@ struct MetricsPageView: View {
     
     @EnvironmentObject var workoutManager: WorkoutManager
     @State private var rhythmViewModel = RhythmViewModel()
-    
-    
-    // animacao de anel tive que elevar estado
-    var progress: CGFloat
-    var ringOpacity: Double
+
+
     
     
     // animacao de anel tive que elevar estado
