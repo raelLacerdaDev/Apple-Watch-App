@@ -10,7 +10,9 @@ import SwiftUI
 struct RouteView: View {
     
     @State private var path: [AppRoute] = []
-    
+	@EnvironmentObject var workoutManager: WorkoutManager
+	
+	
     var body: some View {
         NavigationStack(path: $path) {
             StartView(path: $path)
@@ -22,6 +24,9 @@ struct RouteView: View {
                     }
                 }
         }
+		.task {
+			await workoutManager.requestAuthorization()
+		}
     }
 }
 
