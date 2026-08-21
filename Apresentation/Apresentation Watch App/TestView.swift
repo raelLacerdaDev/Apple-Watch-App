@@ -8,53 +8,46 @@
 import SwiftUI
 
 struct TestView: View {
-    @StateObject private var permissions = PermissionsManager()
-    @StateObject private var analyzer = AudioPeakAnalyzer()
-
-    @State private var isRecording = false
-    @State private var errorMessage: String?
-
+    @StateObject private var viewModel = PresentationViewModel()
+    
     var body: some View {
         VStack(spacing: 8) {
-            Text("\(analyzer.peakCount)")
-                .font(.system(size: 40, weight: .bold))
-            Text("picos detectados")
-                .font(.caption)
-
-            Button(isRecording ? "Parar" : "Iniciar") {
-                toggleRecording()
+            HStack {
+                VStack {
+                    Text("\(viewModel.peakCount)")
+                        .font(.system(size: 40, weight: .bold))
+                    Text("picos detectados")
+                        .font(.caption)
+                }
+                
+                VStack {
+                    Text("\(viewModel.wordsPerMinute)")
+                        .font(.system(size: 40, weight: .bold))
+                    Text("WPM")
+                        .font(.caption)
+                }
             }
+            
+            Button(viewModel.state == .recording ? "Parar" : "Iniciar") {
+                Task {
+                    if viewModel.state == .recording {
+                        viewModel.stopPresentation()
+                    } else {
+                        await viewModel.startPresentation()
+                    }
+                }
+            }
+            
+//            Text(viewModel.speechPace.hashValue)
+//                .font(.caption)
 
-            if let errorMessage {
-                Text(errorMessage)
+            if case let .error(message) = viewModel.state {
+                Text(message)
                     .font(.caption2)
                     .foregroundStyle(.red)
             }
         }
         .padding()
-        .task {
-            await permissions.requestMicrophone()
-        }
-    }
-
-    private func toggleRecording() {
-        guard permissions.isAuthorized else {
-            errorMessage = "Permissão de microfone negada"
-            return
-        }
-
-        if isRecording {
-            analyzer.stop()
-        } else {
-            analyzer.reset()
-            do {
-                try analyzer.start()
-            } catch {
-                errorMessage = error.localizedDescription
-                return
-            }
-        }
-        isRecording.toggle()
     }
 }
 
