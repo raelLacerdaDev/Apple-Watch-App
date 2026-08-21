@@ -16,18 +16,54 @@ final class AudioPeakAnalyzer: ObservableObject {
     @Published private(set) var peakCount: Int = 0
     
     private let audioEngine = AVAudioEngine()
-    private let amplitudeThreshold: Float
+
+    // Piso mínimo do threshold, evita que ele caia perto de zero num ambiente completamente silencioso
+    // (nesse caso o próprio ruído do sensor/mic já dispararia picos falsos).
+    private let minimumAmplitudeThreshold: Float
+
+    // Quantas vezes acima do piso de ruído o som precisa estar pra virar pico. Ex: 2.5 = precisa estar 150% mais alto que o ambiente.
+    private let peakToNoiseRatio: Float
+
+    // Ratio mais permissivo, usado só quando o MotionEnergyAnalyzer avisa que o braço está esticado.
+    // Calibrado com dado real: mesmo esticado o sinal de fala raramente passa de ~1.8x o ruído de fundo
+    // (contra os >2x fáceis de ver perto do rosto), então um ratio mais alto que isso nunca dispararia nada.
+    private let extendedArmPeakToNoiseRatio: Float
+
+    // Quão rápido o piso de ruído se adapta a cada buffer (~23ms). Valor baixo = adapta devagar, não reage a um pico isolado.
+    private let noiseFloorSmoothing: Float
+
     private let refractoryInterval: TimeInterval
-    
+
+    // Estimativa do "ruído de fundo" do ambiente, atualizada continuamente enquanto o som está quieto.
+    private var noiseFloor: Float
+
+    // Atualizado externamente (pelo PresentationViewModel/TestView) a partir do MotionEnergyAnalyzer.isArmExtended.
+    private var isArmExtended = false
+
     private var isAboveThreshold = false
     private var lastPeakTime: TimeInterval = 0
-    
+
     //
-    init(amplitudeThreshold: Float = 0.0015, refractoryInterval: TimeInterval = 0.12çç) {
-        self.amplitudeThreshold = amplitudeThreshold
+    init(
+        minimumAmplitudeThreshold: Float = 0.0015,
+        peakToNoiseRatio: Float = 2.5,
+        extendedArmPeakToNoiseRatio: Float = 1.6,
+        noiseFloorSmoothing: Float = 0.02,
+        refractoryInterval: TimeInterval = 0.12
+    ) {
+        self.minimumAmplitudeThreshold = minimumAmplitudeThreshold
+        self.peakToNoiseRatio = peakToNoiseRatio
+        self.extendedArmPeakToNoiseRatio = extendedArmPeakToNoiseRatio
+        self.noiseFloorSmoothing = noiseFloorSmoothing
         self.refractoryInterval = refractoryInterval
+        self.noiseFloor = minimumAmplitudeThreshold
     }
-    
+
+    // Chamado a cada leitura de posição do MotionEnergyAnalyzer, pra trocar de perfil de threshold em tempo real.
+    func setArmExtended(_ extended: Bool) {
+        isArmExtended = extended
+    }
+
     
     func start() throws {
         
@@ -35,11 +71,13 @@ final class AudioPeakAnalyzer: ObservableObject {
         guard !audioEngine.isRunning else { return }
         
         let session = AVAudioSession.sharedInstance()
-        
-        // Configura o que o app quer fazer com o áudio no sistema o record só grava e o measurement pede o dado cru para análise
+
+        // Voltamos pra .measurement: testamos .voiceChat + setVoiceProcessingEnabled(true) e a unidade
+        // de voice processing do sistema falhou constantemente (render err: -1 em praticamente todo buffer),
+        // entregando amostras não confiáveis. .measurement não tem AGC, mas pelo menos é estável.
         try session.setCategory(.record, mode: .measurement)
         try session.setActive(true)
-        
+
         // Funciona como um grafo de nós de áudio conectado, pega o formato padrão do áudio
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
@@ -73,6 +111,8 @@ final class AudioPeakAnalyzer: ObservableObject {
         peakCount = 0
         lastPeakTime = 0
         isAboveThreshold = false
+        noiseFloor = minimumAmplitudeThreshold
+        isArmExtended = false
     }
     
     private func process(_ buffer: AVAudioPCMBuffer) {
@@ -92,7 +132,6 @@ final class AudioPeakAnalyzer: ObservableObject {
         // Calcula o RMS (root mean square) daquele pedaço de áudio matematicamente usando sqrt (média dos quadrados das amostras)
         // É a forma padão de medir energia/volume de um sinal de áudio
         vDSP_rmsqv(channelData, 1, &rms, frameLength)
-        print("rms: \(rms)")
         
         // Há quanto tempo o sistema está ligado em segundos
         evaluatePeak(rms: rms, now: ProcessInfo.processInfo.systemUptime)
@@ -101,19 +140,34 @@ final class AudioPeakAnalyzer: ObservableObject {
     
     // Observa a linha do tempo do áudio, a cada buffer (23ms) essa função roda e decide se o momento do áudio está altou ou não
     private func evaluatePeak(rms: Float, now: TimeInterval) {
-        let isLoud = rms > amplitudeThreshold
-        
+        // O threshold é relativo ao ruído do ambiente (noiseFloor), não mais um número fixo.
+        // Com o braço esticado usa o ratio mais permissivo — o sinal chega mais fraco e o ratio padrão nunca dispararia.
+        // O max() com minimumAmplitudeThreshold impede que o threshold desabe demais numa sala completamente silenciosa.
+        let ratio = isArmExtended ? extendedArmPeakToNoiseRatio : peakToNoiseRatio
+        let threshold = max(noiseFloor * ratio, minimumAmplitudeThreshold)
+        let isLoud = rms > threshold
+
+        // Log temporário pra calibrar os thresholds com dado real (perto vs. longe da boca, sala quieta vs. barulhenta).
+        // Remover depois que os valores default estiverem calibrados.
+        print("rms: \(rms) | noiseFloor: \(noiseFloor) | threshold: \(threshold) | isArmExtended: \(isArmExtended) | isLoud: \(isLoud)")
+
         // Vê se o som acabou de ficar alto
         if isLoud, !isAboveThreshold, now - lastPeakTime >= refractoryInterval {
-            
+
             lastPeakTime = now
-            
+
             //Toda vez que é identificado um ponto alto é somado 1 no peakcount que vai contanto quantos momentos de pico teve
             Task { @MainActor [weak self] in
                 self?.peakCount += 1
             }
         }
-        
+
+        // Só atualiza o piso de ruído enquanto o som está quieto — se atualizasse durante a fala,
+        // o próprio piso subiria junto com a voz e o detector ia parar de reconhecer picos numa fala contínua.
+        if !isLoud {
+            noiseFloor += (rms - noiseFloor) * noiseFloorSmoothing
+        }
+
         isAboveThreshold = isLoud
     }
     
