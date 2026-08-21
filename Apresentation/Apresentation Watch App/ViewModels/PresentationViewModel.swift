@@ -17,13 +17,23 @@ final class PresentationViewModel: ObservableObject {
         case error(String)
     }
     
+    enum SpeechPace {
+        case ideal
+        case acelerado
+    }
+    
+    // Variáveis para atualizar a UI
     @Published private(set) var state: RRecordingState = .idle
     @Published private(set) var wordsPerMinute: Int = 0
     @Published private(set) var elapsedSeconds: TimeInterval = 0
+    @Published private(set) var speechPace: SpeechPace = .ideal
+    @Published private(set) var peakCount: Int = 0
     
     private let permissions: PermissionsManager
     private let analyzer: AudioPeakAnalyzer
     private let syllablesPerWord: Double
+    private let windowDuration: TimeInterval
+    private let acceleratedThresholdWPM: Int
     
     private var startDate: Date?
     private var tickTask: Task<Void, Never>?
@@ -31,11 +41,15 @@ final class PresentationViewModel: ObservableObject {
     init(
         permissions: PermissionsManager? = nil,
         analyzer: AudioPeakAnalyzer? = nil,
-        syllablesPerWord: Double = 2.2
+        syllablesPerWord: Double = 2.0,
+        windowDuration: TimeInterval = 5.0, // Janela de tempo do cálculo de palavras por minuto
+        acceleratedThresholdWPM: Int = 140 // Quantidade de palavras por minuto necessárias para ativar o modo acelerado
     ) {
         self.permissions = permissions ?? PermissionsManager()
         self.analyzer = analyzer ?? AudioPeakAnalyzer()
         self.syllablesPerWord = syllablesPerWord
+        self.windowDuration = windowDuration
+        self.acceleratedThresholdWPM = acceleratedThresholdWPM
     }
     
     func startPresentation() async {
@@ -51,6 +65,8 @@ final class PresentationViewModel: ObservableObject {
         analyzer.reset()
         wordsPerMinute = 0
         elapsedSeconds = 0
+        speechPace = .ideal
+        peakCount = 0
         startDate = Date()
         
         do {
@@ -86,12 +102,22 @@ final class PresentationViewModel: ObservableObject {
         
         let elapsed = Date().timeIntervalSince(startDate)
         elapsedSeconds = elapsed
+        peakCount = analyzer.peakCount
         
-        guard elapsed >= 2 else { return }
+        // Janela deslizante: filtra picos dos últimos 4 segundos
+        let now = ProcessInfo.processInfo.systemUptime
+        let recentPeaks = analyzer.recentPeakTimestamps.filter { now - $0 <= windowDuration }
         
-        let words = Double(analyzer.peakCount) / syllablesPerWord
-        let minutes = elapsed / 60
-        wordsPerMinute = Int((words / minutes).rounded())
+        let effectiveWindow = max(min(elapsed, windowDuration), 1.0)
+
+        // Cálculo temporal de WPM
+        let words = Double(recentPeaks.count) / syllablesPerWord
+        let minutes = effectiveWindow / 60.0
+        let currentWPM = Int((words / minutes).rounded())
+        
+        // Lança o estado acelerado ou ideal
+        wordsPerMinute = currentWPM
+        speechPace = currentWPM >= acceleratedThresholdWPM ? .acelerado : .ideal
     }
     
 }

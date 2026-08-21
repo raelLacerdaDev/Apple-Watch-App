@@ -12,19 +12,30 @@ internal import Combine
 
 final class AudioPeakAnalyzer: ObservableObject {
     
-    // 
     @Published private(set) var peakCount: Int = 0
+    @Published private(set) var currentRMS: Float = 0
+    @Published private(set) var recentPeakTimestamps: [TimeInterval] = []
     
     private let audioEngine = AVAudioEngine()
-    private let amplitudeThreshold: Float
+
+    // Parâmetros da adaptação dinâmica de ruído
+    private let minThreshold: Float
+    private let sensitivityFactor: Float
     private let refractoryInterval: TimeInterval
+    
+    private var noiseFloor: Float = 0.0005
+    private var peakEnvelope: Float = 0.01
     
     private var isAboveThreshold = false
     private var lastPeakTime: TimeInterval = 0
     
-    //
-    init(amplitudeThreshold: Float = 0.0015, refractoryInterval: TimeInterval = 0.12çç) {
-        self.amplitudeThreshold = amplitudeThreshold
+    init(
+        minThreshold: Float = 0.0006,
+        sensitivityFactor: Float = 0.22,
+        refractoryInterval: TimeInterval = 0.09
+    ) {
+        self.minThreshold = minThreshold
+        self.sensitivityFactor = sensitivityFactor
         self.refractoryInterval = refractoryInterval
     }
     
@@ -43,7 +54,7 @@ final class AudioPeakAnalyzer: ObservableObject {
         // Funciona como um grafo de nós de áudio conectado, pega o formato padrão do áudio
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
-        print("formato do input: \(format)")
+//        print("formato do input: \(format)")
         
         // Ponto de escuta no fluxo de áudio sem interferir nele, o audio flui normalmente, mas a cada 1024 amostras o closure é chamado.
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format){
@@ -73,6 +84,10 @@ final class AudioPeakAnalyzer: ObservableObject {
         peakCount = 0
         lastPeakTime = 0
         isAboveThreshold = false
+        noiseFloor = 0.0005
+        peakEnvelope = 0.01
+        currentRMS = 0
+        recentPeakTimestamps.removeAll()
     }
     
     private func process(_ buffer: AVAudioPCMBuffer) {
@@ -80,8 +95,6 @@ final class AudioPeakAnalyzer: ObservableObject {
                 print("floatChannelData é nil - formato do buffer: \(buffer.format)")
                 return
             } // Guatda as amostras de áudio como ponteiros de memória crua, organizando por canal [0] primeiro canal
-       
-        
         
         // O vDSP_Length é uim tipo do Accelerate que espera um UInt32
         let frameLength = vDSP_Length(buffer.frameLength)
@@ -96,21 +109,37 @@ final class AudioPeakAnalyzer: ObservableObject {
         
         // Há quanto tempo o sistema está ligado em segundos
         evaluatePeak(rms: rms, now: ProcessInfo.processInfo.systemUptime)
-        
     }
     
     // Observa a linha do tempo do áudio, a cada buffer (23ms) essa função roda e decide se o momento do áudio está altou ou não
     private func evaluatePeak(rms: Float, now: TimeInterval) {
-        let isLoud = rms > amplitudeThreshold
+        // Atualiza a Média Móvel Exponencial (EMA) do ruído de fundo
+        if rms < noiseFloor {
+            noiseFloor = noiseFloor * 0.9 + rms * 0.1
+        } else {
+            noiseFloor = noiseFloor * 0.998 + rms * 0.002
+        }
         
+        // Atualiza o envelope de picos de voz recente
+        if rms > peakEnvelope {
+            peakEnvelope = rms
+        } else {
+            peakEnvelope = peakEnvelope * 0.98 + rms * 0.02
+        }
+        
+        let dynamicThreshold = noiseFloor + max((peakEnvelope - noiseFloor) * sensitivityFactor, minThreshold)
+        let isLoud = rms > dynamicThreshold
+
         // Vê se o som acabou de ficar alto
         if isLoud, !isAboveThreshold, now - lastPeakTime >= refractoryInterval {
-            
             lastPeakTime = now
             
-            //Toda vez que é identificado um ponto alto é somado 1 no peakcount que vai contanto quantos momentos de pico teve
+            // Toda vez que é identificado um pico é somado 1 no peakcount que vai contanto quantos momentos de pico teve
+            // Além disso os timestamps dos picos também são salvos e o RMS é atualizado
             Task { @MainActor [weak self] in
                 self?.peakCount += 1
+                self?.currentRMS = rms
+                self?.recentPeakTimestamps.append(now)
             }
         }
         
