@@ -40,6 +40,7 @@ struct SessionTabView: View {
             timerManager.stop()
             captureManager.stop()
             workoutManager.stopWorkout()
+            HapticsManager.shared.stopLoop() // O loop de haptics estava rodando fora da tela de apresentação
         }
         .task {
             // O RhythmViewModel consome o stream até a View sumir (SwiftUI cancela essa Task sozinho),
