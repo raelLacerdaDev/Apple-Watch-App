@@ -32,7 +32,7 @@ struct PaceCalculator {
 	private var slidingWindow: [Int] = []
 	
 	let silenceLimit = 10
-	let secondsWindowAnalysis = 5
+	let secondsWindowAnalysis = 10
 	
 	private(set) var currentWpm = 0
 	private(set) var currentState: SpeechState = .onPace
@@ -42,7 +42,7 @@ struct PaceCalculator {
 		silenceSeconds = (wordCount == 0) ? silenceSeconds + 1 : 0
 		guard silenceSeconds < silenceLimit else { return (currentWpm, currentState) }
 		
-		// Renova a janela a ser analisada pela nova janela de 15 segundos
+		// Renova a janela a ser analisada pela nova janela de 10 segundos
 		slidingWindow.append(wordCount)
 		if slidingWindow.count > secondsWindowAnalysis {
 			slidingWindow.removeFirst()
@@ -79,7 +79,7 @@ struct PaceCalculator {
 			}
 			
 		case .accelerated:
-			if currentWpm <= upperLimit {
+			if currentWpm <= upperLimit - 5 {
 				currentState = .onPace
 			}
 		}
