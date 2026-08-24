@@ -16,20 +16,17 @@ struct MetricsPageView: View {
     @State private var currentTheme: Color = .blue
     
     @EnvironmentObject var workoutManager: WorkoutManager
-    @State private var rhythmViewModel = RhythmViewModel()
+    // Recebido do SessionTabView — é a mesma instância alimentada pelo SpeechCaptureManager,
+    // não uma cópia local. Duas instâncias diferentes de RhythmViewModel nunca deveriam existir
+    // ao mesmo tempo numa sessão só.
+    var rhythmViewModel: RhythmViewModel
 
-
-    
-    
     // animacao de anel tive que elevar estado
     var progress: CGFloat
     var ringOpacity: Double
-    
+
     // para teste alterar depois
     let audioTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
-    
-    // TODO: Remover simulador de palavras posteriormente (acionado a cada 1 segundo)
-    let wordSimulatorTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
     
     var body: some View {
         VStack(spacing: 10) {
@@ -63,16 +60,6 @@ struct MetricsPageView: View {
         .onReceive(audioTimer) { _ in
             if isRecording {
                 currentAudioLevel = CGFloat.random(in: 0.1...1.0)
-            }
-        }
-        // TODO: Remover bloco do simulador posteriormente
-        .onReceive(wordSimulatorTimer) { _ in
-            if isRecording {
-                // Simula 2 a 3 palavras por segundo para testar o limite acelerado vs no ritmo
-                // 3 palavras/seg = 180 wpm (vai acelerar)
-                // 2 palavras/seg = 120 wpm (volta pro pace)
-                let simulatedWordCount = Int.random(in: 2...3)
-                rhythmViewModel.didReceive(wordCount: simulatedWordCount)
             }
         }
         .onChange(of: rhythmViewModel.currentState) { oldValue, newValue in
