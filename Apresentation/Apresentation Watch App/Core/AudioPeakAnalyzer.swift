@@ -52,11 +52,16 @@ final class AudioPeakAnalyzer: ObservableObject {
     private var isAboveThreshold = false
     private var lastPeakTime: TimeInterval = 0
 
+    // RMS do buffer anterior e se o envelope estava subindo — usados pra achar o máximo local
+    // de cada sílaba (ver comentário em evaluatePeak).
+    private var previousRms: Float = 0
+    private var isRising = false
+
     //
     init(
         minimumAmplitudeThreshold: Float = 0.0015,
-        peakToNoiseRatio: Float = 2.5,
-        extendedArmPeakToNoiseRatio: Float = 1.6,
+        peakToNoiseRatio: Float = 1.5,
+        extendedArmPeakToNoiseRatio: Float = 1.2,
         noiseFloorFallSmoothing: Float = 0.02,
         noiseFloorRiseSmoothing: Float = 0.002,
         refractoryInterval: TimeInterval = 0.12
@@ -124,6 +129,8 @@ final class AudioPeakAnalyzer: ObservableObject {
         isAboveThreshold = false
         noiseFloor = minimumAmplitudeThreshold
         isArmExtended = false
+        previousRms = 0
+        isRising = false
     }
     
     private func process(_ buffer: AVAudioPCMBuffer) {
@@ -162,16 +169,23 @@ final class AudioPeakAnalyzer: ObservableObject {
         // Remover depois que os valores default estiverem calibrados.
         print("rms: \(rms) | noiseFloor: \(noiseFloor) | threshold: \(threshold) | isArmExtended: \(isArmExtended) | isLoud: \(isLoud)")
 
-        // Vê se o som acabou de ficar alto
-        if isLoud, !isAboveThreshold, now - lastPeakTime >= refractoryInterval {
+        let currentlyRising = rms > previousRms
 
+        // Conta o pico no MÁXIMO LOCAL (quando o envelope para de subir e começa a cair), não na
+        // borda de subida do threshold. Antes, contar na borda de subida fazia fala rápida/contínua
+        // subestimar o WPM: em fala corrida o RMS quase nunca cai de volta abaixo do threshold entre
+        // sílabas, então várias sílabas ficavam grudadas num único platô "alto" e viravam 1 pico só —
+        // quanto mais rápido a pessoa falava, MENOS picos por segundo eram detectados. Olhando pro
+        // máximo local em vez da borda, cada sílaba conta separadamente mesmo dentro de um platô
+        // contínuo, porque o envelope ainda sobe e desce sílaba a sílaba.
+        if isLoud, isAboveThreshold, isRising, !currentlyRising, now - lastPeakTime >= refractoryInterval {
             lastPeakTime = now
 
-            //Toda vez que é identificado um ponto alto é somado 1 no peakcount que vai contanto quantos momentos de pico teve
             Task { @MainActor [weak self] in
                 self?.peakCount += 1
             }
         }
+        isRising = isLoud && currentlyRising
 
         // Só atualiza o piso de ruído enquanto o som está quieto — se atualizasse durante a fala,
         // o próprio piso subiria junto com a voz e o detector ia parar de reconhecer picos numa fala contínua.
@@ -183,6 +197,7 @@ final class AudioPeakAnalyzer: ObservableObject {
         }
 
         isAboveThreshold = isLoud
+        previousRms = rms
     }
     
     

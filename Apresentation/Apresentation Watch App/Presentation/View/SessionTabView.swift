@@ -46,11 +46,16 @@ struct SessionTabView: View {
             // o que já dispara o onTermination do AsyncStream e encerra a captura de ponta a ponta.
             await rhythmViewModel.startListening(audioStream: captureManager.start())
         }
-        // Vibra uma vez toda vez que o estado entra em "accelerated" — não faz nada ao entrar em
-        // "onPace" (silêncio é o comportamento esperado, não precisa de alerta pra isso).
+        // Enquanto o estado for "accelerated" o haptic vibra em loop (a cada 2s) até voltar pro
+        // ritmo normal — antes disparava só uma vez na transição e nunca mais, mesmo que a pessoa
+        // continuasse falando rápido por vários segundos.
         .onChange(of: rhythmViewModel.currentState) { _, newState in
-            guard newState == .accelerated else { return }
-            HapticsManager.shared.play(.notification)
+            switch newState {
+            case .accelerated:
+                HapticsManager.shared.play(.notification, loop: true, interval: 2.0)
+            case .onPace:
+                HapticsManager.shared.stopLoop()
+            }
         }
     }
 }
