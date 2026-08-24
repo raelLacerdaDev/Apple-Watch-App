@@ -1,6 +1,9 @@
 import Foundation
 import HealthKit
+import os
 internal import Combine
+
+private let workoutLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.anaclaracaldeira.Apresentation", category: "WorkoutManager")
 
 @MainActor
 class WorkoutManager: NSObject, ObservableObject {
@@ -34,7 +37,7 @@ class WorkoutManager: NSObject, ObservableObject {
 		do {
 			try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
 		} catch {
-			print("Erro na permissão do HealthKit: \(error.localizedDescription)")
+			workoutLogger.error("Erro na permissão do HealthKit: \(error.localizedDescription)")
 		}
 	}
 	
@@ -48,7 +51,7 @@ class WorkoutManager: NSObject, ObservableObject {
 			session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
 			builder = session?.associatedWorkoutBuilder()
 		} catch {
-			print("Erro ao iniciar sessão: \(error.localizedDescription)")
+			workoutLogger.error("Erro ao iniciar sessão: \(error.localizedDescription)")
 			return
 		}
 		
@@ -69,7 +72,7 @@ class WorkoutManager: NSObject, ObservableObject {
 				try await builder?.beginCollection(at: startDate)
 				self.running = true
 			} catch {
-				print("Erro ao iniciar coleta do treino: \(error.localizedDescription)")
+				workoutLogger.error("Erro ao iniciar coleta do treino: \(error.localizedDescription)")
 			}
 		}
 	}
@@ -124,14 +127,14 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
 					let workout = try await self.builder?.finishWorkout()
 					self.workout = workout
 				} catch {
-					print("Erro ao encerrar treino: \(error.localizedDescription)")
+					workoutLogger.error("Erro ao encerrar treino: \(error.localizedDescription)")
 				}
 			}
 		}
 	}
 
 	nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
-		print("Sessão falhou: \(error.localizedDescription)")
+		workoutLogger.error("Sessão falhou: \(error.localizedDescription)")
 	}
 }
 
