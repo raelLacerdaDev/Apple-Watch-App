@@ -6,7 +6,9 @@
 //
 
 enum AppRoute: Hashable {
-    case ready
+    case ready(mode : SessionMode)
     case session
     case config
+    case mode
+    case gestureSession
 }

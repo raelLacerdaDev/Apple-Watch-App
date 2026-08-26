@@ -18,9 +18,11 @@ struct RouteView: View {
             StartView(path: $path)
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
-                        case .ready: ReadyView(path:$path)
+                        case .ready(let selectedMode): ReadyView(path:$path, mode: selectedMode)
                         case .session: SessionTabView(path:$path)
                         case .config: ConfigView(path:$path)
+                        case .mode: ModeView(path:$path)
+                        case .gestureSession: GestureModeSession(path: $path)
                     }
                 }
         }
