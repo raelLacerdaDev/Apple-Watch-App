@@ -3,7 +3,9 @@ import HealthKit
 import os
 internal import Combine
 
-private let workoutLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.anaclaracaldeira.Apresentation", category: "WorkoutManager")
+// nonisolated pra poder ser chamado de workoutSession(_:didFailWithError:), que é nonisolated
+// (protocolo do HealthKit) — sem isso o isolamento padrão em MainActor do projeto barra o acesso.
+nonisolated private let workoutLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.anaclaracaldeira.Apresentation", category: "WorkoutManager")
 
 @MainActor
 class WorkoutManager: NSObject, ObservableObject {
