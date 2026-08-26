@@ -10,5 +10,16 @@
 	<array>
 		<string>workout-processing</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.anaclaracaldeira.Apresentation.manoel.watchkitapp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>oratio</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
