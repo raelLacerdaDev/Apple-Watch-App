@@ -32,11 +32,9 @@ struct PaceCalculator {
 	private var slidingWindow: [Int] = []
 	
 	let silenceLimit = 10
-	// Baixado de 5 pra 3 — com 5s de janela, uma rajada de fala rápida ficava diluída por qualquer
-	// pausa natural (respiração, troca de frase) dentro da mesma janela, e o ppm exibido nunca
-	// chegava perto do ritmo real percebido. 3s reage mais rápido a uma rajada, ao custo de oscilar
-	// um pouco mais na tela.
-	let secondsWindowAnalysis = 3
+	// 10s conforme requisito (RN05/RN09/RF10/RF14) — também é o número de segundos consecutivos
+	// acima do limite necessário pra disparar o estado "accelerated" (ver updateSpeechPace).
+	let secondsWindowAnalysis = 10
 
 	// Fator de calibração aplicado por cima do WPM calculado a partir dos picos de áudio. Mesmo
 	// depois de afinar a sensibilidade do detector (peakToNoiseRatio/minimumAmplitudeThreshold em
@@ -55,7 +53,7 @@ struct PaceCalculator {
 		silenceSeconds = (wordCount == 0) ? silenceSeconds + 1 : 0
 		guard silenceSeconds < silenceLimit else { return (currentWpm, currentState) }
 		
-		// Renova a janela a ser analisada pela nova janela de 15 segundos
+		// Renova a janela a ser analisada pela nova janela de 10 segundos
 		slidingWindow.append(wordCount)
 		if slidingWindow.count > secondsWindowAnalysis {
 			slidingWindow.removeFirst()
@@ -92,7 +90,7 @@ struct PaceCalculator {
 			}
 			
 		case .accelerated:
-			if currentWpm <= upperLimit {
+			if currentWpm <= upperLimit - 5 {
 				currentState = .onPace
 			}
 		}
