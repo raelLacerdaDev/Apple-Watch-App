@@ -35,36 +35,43 @@ struct OratioWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
+        // .widgetAccentable() marca o que deve pegar a cor de destaque do mostrador nos modos
+        // "tintado"/"acentuado" (a maioria dos mostradores não deixa a gente escolher cor livre —
+        // isso é o que faz o ícone acompanhar o tema de cada mostrador em vez de ficar cinza fixo).
         switch family {
         case .accessoryCircular:
             ZStack {
                 AccessoryWidgetBackground()
-                Image(systemName: "mic.fill")
-                    .font(.title3)
+                Image(systemName: "waveform.and.mic")
+                    .font(.system(size: 22, weight: .semibold))
+                    .widgetAccentable()
             }
 
         case .accessoryRectangular:
-            HStack(spacing: 6) {
-                Image(systemName: "mic.fill")
-                    .font(.body)
-                VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "waveform.and.mic")
+                    .font(.system(size: 20, weight: .semibold))
+                    .widgetAccentable()
+                VStack(alignment: .leading, spacing: 1) {
                     Text("Oratio")
                         .font(.headline)
-                    Text("Iniciar apresentação")
+                    Text("Toque para começar")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
 
         case .accessoryInline:
-            Label("Oratio", systemImage: "mic.fill")
+            Label("Nova apresentação", systemImage: "waveform.and.mic")
 
         case .accessoryCorner:
-            Image(systemName: "mic.fill")
+            Image(systemName: "waveform.and.mic")
+                .font(.system(size: 18, weight: .semibold))
+                .widgetAccentable()
                 .widgetLabel("Oratio")
 
         default:
-            Image(systemName: "mic.fill")
+            Image(systemName: "waveform.and.mic")
         }
     }
 }
@@ -76,6 +83,10 @@ struct OratioWidget: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             OratioWidgetEntryView(entry: entry)
                 .widgetURL(URL(string: "oratio://start"))
+                // Obrigatório em dispositivo real (diferente do simulador) — sem isso o watchOS
+                // mostra "Please adopt containerBackground API" no lugar do conteúdo. Transparente
+                // porque as famílias accessory (mostrador) já recebem o fundo certo do sistema.
+                .containerBackground(for: .widget) { Color.clear }
         }
         .configurationDisplayName("Oratio")
         .description("Inicie sua apresentação direto do mostrador.")
