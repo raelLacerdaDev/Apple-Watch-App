@@ -14,10 +14,10 @@ struct GestureModeView: View {
     var body: some View {
         ZStack(alignment: .center) {
             HStack (spacing: 8){
-                Image(systemName: "hand.raised")
+                Image(systemName: "hand.pinch")
                     .font(.title2)
-                Text("Faça isso ...")
-                    .font(.title2)
+                Text("Dê dois toques para inciar uma vibração")
+                    .font(.footnote)
             }
             Button(action: {
                 HapticsManager.shared.play(.notification)
