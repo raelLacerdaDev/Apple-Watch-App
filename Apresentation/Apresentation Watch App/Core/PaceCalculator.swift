@@ -32,8 +32,19 @@ struct PaceCalculator {
 	private var slidingWindow: [Int] = []
 	
 	let silenceLimit = 10
-	let secondsWindowAnalysis = 5
-	
+	// 10s conforme requisito (RN05/RN09/RF10/RF14) — também é o número de segundos consecutivos
+	// acima do limite necessário pra disparar o estado "accelerated" (ver updateSpeechPace).
+	let secondsWindowAnalysis = 10
+
+	// Fator de calibração aplicado por cima do WPM calculado a partir dos picos de áudio. Mesmo
+	// depois de afinar a sensibilidade do detector (peakToNoiseRatio/minimumAmplitudeThreshold em
+	// AudioPeakAnalyzer), o valor exibido continuava abaixo do ritmo real percebido pelo usuário —
+	// em vez de seguir caçando sensibilidade de captação (risco de pegar ruído como pico), corrige
+	// direto na métrica final.
+	// 1.5 calculado a partir de dado real de console: sessão de fala rápida mediu média ~118 ppm e
+	// máximo 150 ppm com gain 1.25 — 1.25 * (180/150) = 1.5 pra levar o pico até a faixa esperada.
+	let calibrationGain = 1.5
+
 	private(set) var currentWpm = 0
 	private(set) var currentState: SpeechState = .onPace
 	
@@ -42,7 +53,7 @@ struct PaceCalculator {
 		silenceSeconds = (wordCount == 0) ? silenceSeconds + 1 : 0
 		guard silenceSeconds < silenceLimit else { return (currentWpm, currentState) }
 		
-		// Renova a janela a ser analisada pela nova janela de 15 segundos
+		// Renova a janela a ser analisada pela nova janela de 10 segundos
 		slidingWindow.append(wordCount)
 		if slidingWindow.count > secondsWindowAnalysis {
 			slidingWindow.removeFirst()
@@ -51,7 +62,7 @@ struct PaceCalculator {
 		// Calcula o novo ritmo e atualiza o estado de acordo com o novo calculo
 		calcuteWpm()
 		updateSpeechPace()
-		
+
 		return (currentWpm, currentState)
 	}
 	
@@ -61,8 +72,8 @@ struct PaceCalculator {
 		
 		// Calcula se a media
 		let totalWords = slidingWindow.reduce(0, +)
-		let multiplier = 60.0 / Double(slidingWindow.count)
-		currentWpm = Int(Double(totalWords) * multiplier)
+		let secondsToMinutes = 60.0 / Double(slidingWindow.count)
+		currentWpm = Int(Double(totalWords) * secondsToMinutes * calibrationGain)
 	}
 	
 	private mutating func updateSpeechPace() {
@@ -79,7 +90,7 @@ struct PaceCalculator {
 			}
 			
 		case .accelerated:
-			if currentWpm <= upperLimit {
+			if currentWpm <= upperLimit - 5 {
 				currentState = .onPace
 			}
 		}

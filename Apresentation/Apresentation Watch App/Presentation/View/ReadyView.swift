@@ -13,6 +13,7 @@ struct ReadyView: View {
     
     @Binding var path: [AppRoute]
     @State private var countDown = 3
+    let mode: SessionMode
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -28,7 +29,12 @@ struct ReadyView: View {
                 countDown -= 1
             } else {
                 timer.upstream.connect().cancel()
-                path = [.session]
+                
+                if mode == .speech {
+                    path = [.session]
+                } else {
+                    path = [.gestureSession]
+                }
             }
         }
         .navigationBarBackButtonHidden(true)
