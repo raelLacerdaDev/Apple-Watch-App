@@ -8,7 +8,10 @@
 import Foundation
 import AVFoundation
 import Accelerate // O framework de baixo nível da Apple para matemática vetorizada (SIMD): soma, RMS, FFT, filtros, otimizdo para um hardware de chip.
+import os
 internal import Combine
+
+private let audioLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.anaclaracaldeira.Apresentation", category: "AudioPeakAnalyzer")
 
 final class AudioPeakAnalyzer: ObservableObject {
     
@@ -59,9 +62,15 @@ final class AudioPeakAnalyzer: ObservableObject {
 
     //
     init(
-        minimumAmplitudeThreshold: Float = 0.0015,
-        peakToNoiseRatio: Float = 1.5,
-        extendedArmPeakToNoiseRatio: Float = 1.2,
+        // Baixado de 0.0015 — esse piso fixo estava dominando sobre noiseFloor * peakToNoiseRatio
+        // (threshold = max dos dois), então soltar o ratio sozinho não tinha efeito nenhum enquanto
+        // o piso ficasse maior que o ratio relativo ao ruído real do ambiente.
+        minimumAmplitudeThreshold: Float = 0.0004,
+        // Baixado de 1.5/1.2 pra pegar trechos mais fracos de fala (fim de frase, respiração) e o
+        // sinal mais fraco do braço esticado. Perto de 1.0 o threshold vira quase igual ao ruído de
+        // fundo — mais sensível, mas também mais sujeito a captar ruído como pico.
+        peakToNoiseRatio: Float = 1.3,
+        extendedArmPeakToNoiseRatio: Float = 1.05,
         noiseFloorFallSmoothing: Float = 0.02,
         noiseFloorRiseSmoothing: Float = 0.002,
         refractoryInterval: TimeInterval = 0.12
@@ -97,7 +106,7 @@ final class AudioPeakAnalyzer: ObservableObject {
         // Funciona como um grafo de nós de áudio conectado, pega o formato padrão do áudio
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
-        print("formato do input: \(format)")
+        audioLogger.debug("Formato do input: \(format.description, privacy: .public)")
         
         // Ponto de escuta no fluxo de áudio sem interferir nele, o audio flui normalmente, mas a cada 1024 amostras o closure é chamado.
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format){
@@ -109,7 +118,7 @@ final class AudioPeakAnalyzer: ObservableObject {
         audioEngine.prepare()
         
         try audioEngine.start()
-        print("engine rodando: \(audioEngine.isRunning)")
+        audioLogger.debug("Engine rodando: \(self.audioEngine.isRunning)")
     }
     
     //Primeiro remove o tap e depois desativa a sessão de aúdio e avisa que o a app liberou o uso exclusivo do aúdio.
@@ -135,7 +144,7 @@ final class AudioPeakAnalyzer: ObservableObject {
     
     private func process(_ buffer: AVAudioPCMBuffer) {
         guard let channelData = buffer.floatChannelData?[0] else {
-                print("floatChannelData é nil - formato do buffer: \(buffer.format)")
+                audioLogger.error("floatChannelData é nil - formato do buffer: \(buffer.format.description, privacy: .public)")
                 return
             } // Guatda as amostras de áudio como ponteiros de memória crua, organizando por canal [0] primeiro canal
        
@@ -164,10 +173,6 @@ final class AudioPeakAnalyzer: ObservableObject {
         let ratio = isArmExtended ? extendedArmPeakToNoiseRatio : peakToNoiseRatio
         let threshold = max(noiseFloor * ratio, minimumAmplitudeThreshold)
         let isLoud = rms > threshold
-
-        // Log temporário pra calibrar os thresholds com dado real (perto vs. longe da boca, sala quieta vs. barulhenta).
-        // Remover depois que os valores default estiverem calibrados.
-        print("rms: \(rms) | noiseFloor: \(noiseFloor) | threshold: \(threshold) | isArmExtended: \(isArmExtended) | isLoud: \(isLoud)")
 
         let currentlyRising = rms > previousRms
 

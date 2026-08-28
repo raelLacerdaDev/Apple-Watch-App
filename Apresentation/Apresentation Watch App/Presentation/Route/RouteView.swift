@@ -29,6 +29,12 @@ struct RouteView: View {
 		.task {
 			await workoutManager.requestAuthorization()
 		}
+		// Atalho da complication do mostrador ("oratio://start") — pula direto pro countdown de
+		// preparação, como se o usuário tivesse tocado em "Começar" na tela inicial.
+		.onOpenURL { url in
+			guard url.scheme == "oratio", url.host == "start" else { return }
+			path = [.ready]
+		}
     }
 }
 
