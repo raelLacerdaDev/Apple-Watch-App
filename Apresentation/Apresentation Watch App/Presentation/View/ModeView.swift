@@ -1,44 +1,43 @@
 //
-//  StartView.swift
-//  NavigationWatchOs
+//  ModeView.swift
+//  Apresentation
 //
-//  Created by israel lacerda gomes santos on 18/08/26.
+//  Created by israel lacerda gomes santos on 26/08/26.
 //
 
 import SwiftUI
 
-
-struct StartView: View {
+struct ModeView : View {
     
     @Binding var path: [AppRoute]
     
     var body: some View {
-        VStack(spacing: 10) {
+        VStack (spacing: 10){
             Button {
-                path.append(.mode)
+                path.append(.ready(mode: .speech))
             }label: {
                 HStack {
-                    Image(systemName: "play")
+                    Image(systemName: "microphone")
                         .font(.body)
-                    Text("Começar")
+                    Text("Modo Fala")
                         .font(.body)
                 }
             }
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
+                .tint(.green)
+            
             Button {
-                path.append(.config)
-            } label: {
+                path.append(.ready(mode: .gesture))
+            }label: {
                 HStack {
-                    Image(systemName: "gear")
+                    Image(systemName: "hand.palm.facing")
                         .font(.body)
-                    Text("Configurações")
+                    Text("Modo Gesto")
                         .font(.body)
                 }
             }
                 .buttonStyle(.borderedProminent)
-                .tint(.gray)
+                .tint(.orange)
         }
-        .navigationTitle("Início")
     }
 }
